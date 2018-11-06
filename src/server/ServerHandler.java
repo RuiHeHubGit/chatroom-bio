@@ -51,11 +51,6 @@ public class ServerHandler<T> implements Runnable{
     public void run() {
         while (run) {
             try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            try {
                 selector.select(1000);
                 Set<SelectionKey> selectionKeySet = selector.selectedKeys();
                 Iterator<SelectionKey> iterator = selectionKeySet.iterator();
@@ -68,6 +63,16 @@ public class ServerHandler<T> implements Runnable{
             } catch (IOException e) {
                 listener.onError(e);
             }
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            selector.close();
+        } catch (IOException e) {
+            listener.onError(e);
         }
     }
 
@@ -88,8 +93,9 @@ public class ServerHandler<T> implements Runnable{
 
                 if(key.isReadable()) {
                     SocketChannel sc = (SocketChannel) key.channel();
-                    Session<T> session = sessionMap.get(sc);
-                    listener.onMessage(session, session.read());
+                    if(!sessionMap.get(sc).decode()) {
+                        sessionMap.remove(sc);
+                    }
                 }
             } catch (IOException e) {
                 listener.onError(e);

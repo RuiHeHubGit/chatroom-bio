@@ -32,6 +32,7 @@ public class Session<T> {
         this.id = UUID.randomUUID().toString();
         this.property = new HashMap();
         this.createTime = new Date();
+        this.property.put("username", this.id.substring(26));
         try {
             if(decode == null) {
                 this.decode = (Decoder<T>) new DefStringDecoder();
@@ -76,6 +77,14 @@ public class Session<T> {
         this.createTime = createTime;
     }
 
+    public SocketChannel getSocketChannel() {
+        return socketChannel;
+    }
+
+    public void setSocketChannel(SocketChannel socketChannel) {
+        this.socketChannel = socketChannel;
+    }
+
     @Override
     public String toString() {
         return "Session{" +
@@ -86,9 +95,8 @@ public class Session<T> {
     }
 
     public void send(T data) {
-        byte[] bytes = new byte[0];
         try {
-            bytes = encode.encode(data);
+            byte[] bytes = encode.encode(data);
             ByteBuffer writeBuffer = ByteBuffer.allocate(bytes.length);
             //将字节数组复制到缓冲区
             writeBuffer.put(bytes);
@@ -98,10 +106,11 @@ public class Session<T> {
             socketChannel.write(writeBuffer);
         } catch (IOException e) {
             listener.onError(e);
+            listener.onClone(this);
         }
     }
 
-    public T read() {
+    public boolean decode() {
         try {
             int len = socketChannel.read(readBuffer);
             if(len > 0) {
@@ -110,11 +119,23 @@ public class Session<T> {
                 byte[] bytes = new byte[readBuffer.remaining()];
                 //将缓冲区可读字节数组复制到新建的数组中
                 readBuffer.get(bytes);
-                return decode.decode(bytes);
+                readBuffer.clear();
+                listener.onMessage(this, decode.decode(bytes));
             }
+            return true;
         } catch (IOException e) {
+            try {
+                socketChannel.close();
+            } catch (IOException e1) {
+                listener.onError(e1);
+            }
             listener.onError(e);
+            listener.onClone(this);
         }
-        return null;
+        return false;
+    }
+
+    public boolean isConnected() {
+        return socketChannel.isConnected();
     }
 }

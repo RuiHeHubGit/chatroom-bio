@@ -11,7 +11,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Vector;
-import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * Created by HeRui on 2018/11/6.
@@ -67,6 +66,10 @@ public class Server implements SessionListener<String>{
         sessions.add(session);
         System.out.println("client connected:"+session);
         for (Session<String> s : sessions) {
+            if(!s.isConnected()) {
+                sessions.remove(s);
+                continue;
+            }
             s.send("["+session.getProperty().get("username")+"] "+ getNowTimeString("MM-dd HH:mm:ss")+":加入了聊天室！");
         }
     }
@@ -83,6 +86,7 @@ public class Server implements SessionListener<String>{
     public void onError(Exception e) {
         System.out.println(getNowTimeString("yyyy-MM-dd HH:mm:ss")+"[error]:");
         System.out.println(e.getLocalizedMessage());
+        e.printStackTrace();
     }
 
     @Override

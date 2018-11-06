@@ -6,6 +6,8 @@ import session.Session;
 import session.SessionListener;
 
 import java.io.IOException;
+import java.net.ConnectException;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -47,16 +49,11 @@ public class ClientHandler<T>implements Runnable{
     @Override
     public void run() {
         while (run) {
+            SelectionKey key = null;
             try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            try {
-                selector.select(2000);
+                selector.select(1000);
                 Set<SelectionKey> selectionKeySet = selector.selectedKeys();
                 Iterator<SelectionKey> iterator = selectionKeySet.iterator();
-                SelectionKey key;
                 while (iterator.hasNext()) {
                     key = iterator.next();
                     iterator.remove();
@@ -64,7 +61,24 @@ public class ClientHandler<T>implements Runnable{
                 }
             } catch (IOException e) {
                 listener.onError(e);
+                if(key != null) {
+                    try {
+                        ((SocketChannel)key.channel()).register(null, SelectionKey.OP_CONNECT);
+                    } catch (ClosedChannelException e1) {
+                        listener.onError(e1);
+                    }
+                }
             }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            selector.close();
+        } catch (IOException e) {
+            listener.onError(e);
         }
     }
 
@@ -73,13 +87,18 @@ public class ClientHandler<T>implements Runnable{
             try {
                 if(key.isConnectable()) {
                     SocketChannel sc = (SocketChannel) key.channel();
-                    sc.register(selector, SelectionKey.OP_READ);
-                    session = new Session(sc, listener, encode, decode);
-                    listener.onOpen(session);
+                    if(sc.finishConnect()) {
+                        sc.register(selector, SelectionKey.OP_READ);
+                        session = new Session(sc, listener, encode, decode);
+                        listener.onOpen(session);
+                    } else {
+                        listener.onError(new ConnectException("failed connection"));
+                        System.exit(1);
+                    }
                 }
 
                 if(key.isReadable()) {
-                    listener.onMessage(session, session.read());
+                    session.decode();
                 }
             } catch (IOException e) {
                 listener.onError(e);
