@@ -76,7 +76,7 @@ public class ClientHandler<T>implements Runnable{
             try {
                 socketChannel.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                listener.onError(e);
             }
             socketChannel = null;
         }

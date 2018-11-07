@@ -95,8 +95,11 @@ public class Server implements SessionListener<String>{
     public void onClone(Session<String> session) {
         sessions.remove(session);
         System.out.println("client disconnect:"+session);
-        for (Session s : sessions) {
-            s.send("["+session.getProperty().get("username")+"] "+ getNowTimeString("MM-dd HH:mm:ss")+":离开了聊天室！");
+        Object username = session.getProperty().get("username");
+        if(username != null) {
+            for (Session s : sessions) {
+                s.send("[" + username + "] " + getNowTimeString("MM-dd HH:mm:ss") + ":离开了聊天室！");
+            }
         }
     }
 }

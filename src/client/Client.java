@@ -53,14 +53,16 @@ public class Client implements SessionListener<String>{
             String line =scanner.nextLine();
             session.getProperty().put("username", line);
             session.send(line);
-            do {
+            while (true){
                 line = scanner.nextLine();
+                if("exit".equals(line)) {
+                    handler.stop();
+                    System.exit(0);
+                }
                 if(!line.isEmpty()) {
                     session.send(line);
                 }
-            } while (!"exit".equals(line));
-            handler.stop();
-            scanner.close();
+            }
         }).start();
     }
 
