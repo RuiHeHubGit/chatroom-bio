@@ -58,7 +58,7 @@ public class Client implements SessionListener<String>{
                 if(!line.isEmpty()) {
                     session.send(line);
                 }
-            } while (line != "exit");
+            } while (!"exit".equals(line));
             handler.stop();
             scanner.close();
         }).start();
