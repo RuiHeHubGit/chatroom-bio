@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/chatroom-bio.iml" filepath="$PROJECT_DIR$/chatroom-bio.iml" />
+      <module fileurl="file://$PROJECT_DIR$/chatroom-nio.iml" filepath="$PROJECT_DIR$/chatroom-nio.iml" />
     </modules>
   </component>
 </project>
