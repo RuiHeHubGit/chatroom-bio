@@ -8,7 +8,6 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.Date;
 import java.util.Scanner;
 
 /**
@@ -37,7 +36,7 @@ public class Client implements SessionListener<String>{
             socketChannel.configureBlocking(false);
             socketChannel.connect(new InetSocketAddress(host,port));
             socketChannel.register(selector, SelectionKey.OP_CONNECT);
-            handler = new ClientHandler(selector, this);
+            handler = new ClientHandler(socketChannel, selector, this);
             handler.start();
         } catch (IOException e) {
             onError(e);
@@ -46,10 +45,14 @@ public class Client implements SessionListener<String>{
 
     @Override
     public void onOpen(Session<String> session) {
-        System.out.println("client connect:"+session);
+        System.out.println("client connect:");
+        session.setId(null);
         new Thread(()->{
             Scanner scanner = new Scanner(System.in);
-            String line;
+            System.out.println("输入昵称：");
+            String line =scanner.nextLine();
+            session.getProperty().put("username", line);
+            session.send(line);
             do {
                 line = scanner.nextLine();
                 if(!line.isEmpty()) {
@@ -63,13 +66,17 @@ public class Client implements SessionListener<String>{
 
     @Override
     public void onMessage(Session<String> session, String msg) {
+        if(session.getId() == null) {
+            session.setId(msg);
+            System.out.println(session);
+            return;
+        }
         System.out.println(msg);
     }
 
     @Override
     public void onError(Exception e) {
         System.out.println(e.getLocalizedMessage());
-        e.printStackTrace();
     }
 
     @Override

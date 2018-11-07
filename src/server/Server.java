@@ -45,7 +45,7 @@ public class Server implements SessionListener<String>{
             // 监听连接
             serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-            handler = new ServerHandler(selector, this);
+            handler = new ServerHandler(serverChannel, selector, this);
             handler.start();
             started = true;
             System.out.println("server start on port:"+port);
@@ -63,22 +63,25 @@ public class Server implements SessionListener<String>{
 
     @Override
     public void onOpen(Session<String> session) {
-        sessions.add(session);
-        System.out.println("client connected:"+session);
-        for (Session<String> s : sessions) {
-            if(!s.isConnected()) {
-                sessions.remove(s);
-                continue;
-            }
-            s.send("["+session.getProperty().get("username")+"] "+ getNowTimeString("MM-dd HH:mm:ss")+":加入了聊天室！");
-        }
+        System.out.println("client connected");
     }
 
     @Override
     public void onMessage(Session<String> session, String msg) {
-        System.out.println("["+session.getProperty().get("username")+"] "+ getNowTimeString("yyyy-MM-dd HH:mm:ss")+":\n"+msg);
+        Object username = session.getProperty().get("username");
+        if(username == null) {
+            username = msg;
+            session.getProperty().put("username", username);
+            msg = getNowTimeString("MM-dd HH:mm:ss")+"\n["+username+"] "+"加入了聊天室！";
+            sessions.add(session);
+            session.send(session.getId());
+            System.out.println(session);
+        } else {
+            msg = "["+username+"] "+ getNowTimeString("MM-dd HH:mm:ss")+"\n"+msg;
+        }
+        System.out.println(msg);
         for (Session s : sessions) {
-            s.send("["+session.getProperty().get("username")+"] "+ getNowTimeString("MM-dd HH:mm:ss")+":\n"+msg);
+            s.send(msg);
         }
     }
 
@@ -86,7 +89,6 @@ public class Server implements SessionListener<String>{
     public void onError(Exception e) {
         System.out.println(getNowTimeString("yyyy-MM-dd HH:mm:ss")+"[error]:");
         System.out.println(e.getLocalizedMessage());
-        e.printStackTrace();
     }
 
     @Override

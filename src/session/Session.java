@@ -32,7 +32,6 @@ public class Session<T> {
         this.id = UUID.randomUUID().toString();
         this.property = new HashMap();
         this.createTime = new Date();
-        this.property.put("username", this.id.substring(26));
         try {
             if(decode == null) {
                 this.decode = (Decoder<T>) new DefStringDecoder();

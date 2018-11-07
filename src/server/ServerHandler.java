@@ -19,17 +19,19 @@ import java.util.Set;
  */
 public class ServerHandler<T> implements Runnable{
     private HashMap<SocketChannel, Session<T>> sessionMap;
+    private ServerSocketChannel serverSocketChannel;
     private Selector selector;
     private SessionListener<T> listener;
     private Encoder encode;
     private Decoder decode;
     private volatile boolean run;
 
-    public ServerHandler(Selector selector, SessionListener<T> listener) {
-        this(selector, listener, null, null);
+    public ServerHandler(ServerSocketChannel serverSocketChannel, Selector selector, SessionListener<T> listener) {
+        this(serverSocketChannel, selector, listener, null, null);
     }
 
-    public ServerHandler(Selector selector, SessionListener<T> listener, Encoder encode, Decoder decode) {
+    public ServerHandler(ServerSocketChannel serverSocketChannel, Selector selector, SessionListener<T> listener, Encoder encode, Decoder decode) {
+        this.serverSocketChannel = serverSocketChannel;
         this.selector = selector;
         this.listener = listener;
         this.encode = encode;
@@ -63,42 +65,49 @@ public class ServerHandler<T> implements Runnable{
             } catch (IOException e) {
                 listener.onError(e);
             }
+        }
+        close();
+    }
+
+    private void close() {
+        if(serverSocketChannel != null) {
             try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
+                serverSocketChannel.close();
+            } catch (IOException e) {
                 e.printStackTrace();
             }
+            serverSocketChannel = null;
         }
-        try {
-            selector.close();
-        } catch (IOException e) {
-            listener.onError(e);
+
+        if(selector != null) {
+            try {
+                selector.close();
+            } catch (IOException e) {
+                listener.onError(e);
+            }
+            selector = null;
         }
     }
 
-    private void handleKey(SelectionKey key) {
+    private void handleKey(SelectionKey key) throws IOException {
         if(key.isValid()) {
-            try {
-                if(key.isAcceptable()) {
-                    ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
-                    SocketChannel sc = ssc.accept();
-                    if(sc != null) {
-                        sc.configureBlocking(false);
-                        sc.register(selector, SelectionKey.OP_READ);
-                        Session<T> session = new Session(sc, listener, encode, decode);
-                        sessionMap.put(sc, session);
-                        listener.onOpen(session);
-                    }
+            if(key.isAcceptable()) {
+                ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
+                SocketChannel sc = ssc.accept();
+                if(sc != null) {
+                    sc.configureBlocking(false);
+                    sc.register(selector, SelectionKey.OP_READ);
+                    Session<T> session = new Session(sc, listener, encode, decode);
+                    sessionMap.put(sc, session);
+                    listener.onOpen(session);
                 }
+            }
 
-                if(key.isReadable()) {
-                    SocketChannel sc = (SocketChannel) key.channel();
-                    if(!sessionMap.get(sc).decode()) {
-                        sessionMap.remove(sc);
-                    }
+            if(key.isReadable()) {
+                SocketChannel sc = (SocketChannel) key.channel();
+                if(!sessionMap.get(sc).decode()) {
+                    sessionMap.remove(sc);
                 }
-            } catch (IOException e) {
-                listener.onError(e);
             }
         }
     }
